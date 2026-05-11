@@ -3,6 +3,9 @@ __pycache__/
 *.pyc
 *.db
 
+practice2/.env
+practice3/k8s/booking-secrets.yaml
+
 assignment.txt
 ~$*.docx
 

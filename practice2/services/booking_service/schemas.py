@@ -1,6 +1,6 @@
 from datetime import datetime
 
-from pydantic import BaseModel, ConfigDict, Field, model_validator
+from pydantic import BaseModel, ConfigDict, EmailStr, Field, model_validator
 
 
 class RoomOut(BaseModel):
@@ -27,9 +27,31 @@ class RoomUpdate(BaseModel):
         return self
 
 
+class UserRegister(BaseModel):
+    email: EmailStr
+    password: str = Field(min_length=6, max_length=128)
+
+
+class UserLogin(BaseModel):
+    email: EmailStr
+    password: str
+
+
+class UserPublic(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    email: str
+    is_admin: bool
+
+
+class TokenResponse(BaseModel):
+    access_token: str
+    token_type: str = "bearer"
+    user: UserPublic
+
+
 class BookingCreate(BaseModel):
     room_id: int = Field(gt=0)
-    user_email: str
     start_time: datetime
     end_time: datetime
 
@@ -39,6 +61,7 @@ class BookingOut(BaseModel):
 
     id: int
     room_id: int
+    user_id: int
     user_email: str
     start_time: datetime
     end_time: datetime

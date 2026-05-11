@@ -10,26 +10,36 @@ services:
     build: ./services/gateway
     ports:
       - "8000:8000"
+    env_file:
+      - .env
     environment:
-      BOOKING_SERVICE_URL: http://booking-service:8001
+      BOOKING_SERVICE_URL: ${BOOKING_SERVICE_URL}
     depends_on:
       - booking-service
 
   booking-service:
     build: ./services/booking_service
+    env_file:
+      - .env
     environment:
-      DATABASE_URL: postgresql+psycopg2://booking:booking@postgres:5432/booking
-      REDIS_URL: redis://redis:6379/0
+      DATABASE_URL: ${DATABASE_URL}
+      REDIS_URL: ${REDIS_URL}
+      JWT_SECRET_KEY: ${JWT_SECRET_KEY}
+      JWT_EXPIRE_MINUTES: ${JWT_EXPIRE_MINUTES:-10080}
+      BOOTSTRAP_ADMIN_EMAIL: ${BOOTSTRAP_ADMIN_EMAIL}
+      BOOTSTRAP_ADMIN_PASSWORD: ${BOOTSTRAP_ADMIN_PASSWORD}
     depends_on:
       - postgres
       - redis
 
   postgres:
     image: postgres:16-alpine
+    env_file:
+      - .env
     environment:
-      POSTGRES_DB: booking
-      POSTGRES_USER: booking
-      POSTGRES_PASSWORD: booking
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
     ports:
       - "5432:5432"
     volumes:

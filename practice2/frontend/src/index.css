@@ -269,6 +269,88 @@ body {
   box-shadow: 0 20px 40px rgba(0, 0, 0, 0.35);
 }
 
+.hero-top {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 24px;
+}
+
+.hero-top > div:first-child {
+  flex: 1 1 320px;
+  min-width: 0;
+}
+
+.auth-panel {
+  flex: 0 1 300px;
+  background: #0d1221;
+  border: 1px solid #2e3758;
+  border-radius: 14px;
+  padding: 14px;
+}
+
+.auth-form {
+  display: grid;
+  gap: 10px;
+}
+
+.auth-form input {
+  width: 100%;
+}
+
+.auth-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.auth-user {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.auth-user > div:first-child {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.badge-admin {
+  display: inline-block;
+  padding: 4px 8px;
+  border-radius: 6px;
+  font-size: 11px;
+  font-weight: 600;
+  background: rgba(255, 180, 100, 0.15);
+  border: 1px solid rgba(255, 180, 100, 0.45);
+  color: #ffd4a8;
+}
+
+.btn-compact {
+  padding: 8px 12px;
+  font-size: 14px;
+  border-radius: 10px;
+}
+
+.btn-compact.ghost {
+  background: transparent;
+  color: #c8ceeb;
+  border: 1px solid #2e3758;
+}
+
+.account-line {
+  margin: 0 0 12px;
+  font-size: 14px;
+  color: #aeb4cf;
+}
+
+.calendar-hint {
+  margin-top: 12px;
+}
+
 .badge {
   display: inline-block;
   padding: 6px 12px;

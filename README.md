@@ -31,15 +31,23 @@
    cd practice2
    ```
 
-2. Соберите образы и поднимите сервисы в фоне:
+2. Создайте файл переменных окружения (секреты не хранятся в `docker-compose.yml`):
+
+   ```bash
+   copy .env.example .env
+   ```
+
+   Отредактируйте `.env` при необходимости (пароли БД, JWT, bootstrap-админ).
+
+3. Соберите образы и поднимите сервисы в фоне:
 
    ```bash
    docker compose up -d --build
    ```
 
-3. Дождитесь готовности контейнеров (первый запуск может занять несколько минут из-за сборки frontend и установки зависимостей Python).
+4. Дождитесь готовности контейнеров (первый запуск может занять несколько минут из-за сборки frontend и установки зависимостей Python).
 
-4. Проверьте в браузере или через `curl`:
+5. Проверьте в браузере или через `curl`:
 
    | Что | URL |
    |-----|-----|
@@ -49,7 +57,9 @@
    | Health gateway | http://localhost:8000/health |
    | Список комнат через gateway | http://localhost:8000/api/rooms |
 
-5. Остановка и удаление контейнеров:
+   **Авторизация:** на фронтенде вход или регистрация. Бронирование создаётся только для текущего пользователя. Управление переговорками (добавление, правка, удаление) — только у администратора. Учётная запись bootstrap-админа задаётся в файле **`.env`** (`BOOTSTRAP_ADMIN_EMAIL`, `BOOTSTRAP_ADMIN_PASSWORD`); значения по умолчанию см. в `.env.example`.
+
+6. Остановка и удаление контейнеров:
 
    ```bash
    cd practice2
@@ -60,7 +70,7 @@
 
 ## Практика 3: Minikube и Kubernetes (подробная инструкция)
 
-Цель: собрать образы `gateway` и `booking-service`, загрузить их в Minikube, применить манифесты из `practice3/k8s/all-in-one.yaml`, убедиться, что поды в `Running`, API доступен через Ingress или port-forward.
+Цель: собрать образы `gateway` и `booking-service`, загрузить их в Minikube, применить Secret и манифесты из `practice3/k8s/`, убедиться, что поды в `Running`, API доступен через Ingress или port-forward.
 
 ### 3.0. Что должно быть установлено
 
@@ -144,19 +154,28 @@ minikube image ls | findstr booking-service
 
 ### 3.4. Применение манифестов
 
-1. Примените единый файл (ConfigMap, Secret, Postgres, Redis, booking-service, gateway, Ingress):
+1. Подготовьте Secret с учётными данными (файл `booking-secrets.yaml` в репозиторий не коммитится):
 
    ```bash
+   copy practice3\k8s\booking-secrets.yaml.example practice3\k8s\booking-secrets.yaml
+   ```
+
+   Отредактируйте `practice3/k8s/booking-secrets.yaml`: пароль в `DATABASE_URL` должен совпадать с `DATABASE_PASSWORD`.
+
+2. Примените Secret, затем остальные объекты (ConfigMap, Postgres, Redis, booking-service, gateway, Ingress):
+
+   ```bash
+   kubectl apply -f practice3/k8s/booking-secrets.yaml
    kubectl apply -f practice3/k8s/all-in-one.yaml
    ```
 
-2. Дождитесь готовности деплойментов (таймаут можно увеличить при медленной машине):
+3. Дождитесь готовности деплойментов (таймаут можно увеличить при медленной машине):
 
    ```bash
    kubectl wait --for=condition=available deployment/postgres deployment/redis deployment/booking-service deployment/gateway --timeout=300s
    ```
 
-3. Проверьте поды, сервисы и Ingress:
+4. Проверьте поды, сервисы и Ingress:
 
    ```bash
    kubectl get pods,svc,ingress

@@ -16,7 +16,8 @@
 
 ## Структура манифестов
 
-- Единый манифест: `k8s/all-in-one.yaml`
+- Единый манифест без Secret: `k8s/all-in-one.yaml` (Secret создаётся отдельно из шаблона).
+- Шаблон секретов (в репозитории): `k8s/booking-secrets.yaml.example` → скопируйте в `k8s/booking-secrets.yaml` (локальный файл в `.gitignore`) и задайте значения.
 - Отдельные файлы (для удобства проверки):
   - `k8s/deployment-gateway.yaml`
   - `k8s/deployment-booking-service.yaml`
@@ -45,6 +46,9 @@ minikube image load booking-service:latest
 ### Шаг 3. Применение манифестов
 
 ```bash
+copy k8s\booking-secrets.yaml.example k8s\booking-secrets.yaml
+# отредактируйте k8s/booking-secrets.yaml
+kubectl apply -f k8s/booking-secrets.yaml
 kubectl apply -f k8s/all-in-one.yaml
 ```
 

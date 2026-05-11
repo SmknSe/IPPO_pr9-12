@@ -20,6 +20,21 @@ spec:
             - containerPort: 8001
           env:
             - name: DATABASE_URL
-              value: "postgresql+psycopg2://booking:booking@postgres:5432/booking"
+              valueFrom:
+                secretKeyRef:
+                  name: booking-secrets
+                  key: DATABASE_URL
             - name: REDIS_URL
               value: redis://redis:6379/0
+            - name: JWT_SECRET_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: booking-secrets
+                  key: JWT_SECRET_KEY
+            - name: BOOTSTRAP_ADMIN_EMAIL
+              value: "admin@example.com"
+            - name: BOOTSTRAP_ADMIN_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: booking-secrets
+                  key: BOOTSTRAP_ADMIN_PASSWORD

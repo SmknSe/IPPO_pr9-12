@@ -1,19 +1,17 @@
 @startuml
 !include https://raw.githubusercontent.com/plantuml-stdlib/C4-PlantUML/master/C4_Context.puml
 
-title C4 Context - Meeting Room Booking
+title C4 Context — Meeting Room Booking (MVP, practice2)
 
-Person(employee, "Сотрудник компании", "Создает и просматривает бронирования")
+Person(employee, "Сотрудник компании", "Создаёт и просматривает бронирования")
 Person(admin, "Офис-администратор", "Управляет комнатами и политиками бронирования")
 
-System(bookingSystem, "Meeting Room Booking", "Веб-приложение для бронирования переговорок")
-System_Ext(corpSSO, "Корпоративный SSO", "Аутентификация пользователей")
-System_Ext(notifier, "Почтовый сервис", "Отправка подтверждений и напоминаний")
+System(bookingSystem, "Meeting Room Booking", "Веб-приложение: React UI, API Gateway, Booking Service, PostgreSQL, Redis")
+System_Ext(notifier, "Почтовый / push-сервис", "Подтверждения и напоминания (при подключении)")
 
-Rel(employee, bookingSystem, "Работает с системой", "HTTPS")
-Rel(admin, bookingSystem, "Администрирует систему", "HTTPS")
-Rel(bookingSystem, corpSSO, "Проверяет учетные данные", "OAuth2/OIDC")
-Rel(bookingSystem, notifier, "Отправляет уведомления", "SMTP/API")
+Rel(employee, bookingSystem, "Брони, регистрация, вход (JWT)", "HTTPS")
+Rel(admin, bookingSystem, "Администрирование комнат, вход (JWT)", "HTTPS")
+Rel(bookingSystem, notifier, "Отправка уведомлений", "SMTP / HTTP API")
 
 SHOW_LEGEND()
 @enduml

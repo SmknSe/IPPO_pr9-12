@@ -1,27 +1,27 @@
 @startuml
 !include https://raw.githubusercontent.com/plantuml-stdlib/C4-PlantUML/master/C4_Container.puml
 
-title C4 Container - Meeting Room Booking
+title C4 Container — Meeting Room Booking (docker-compose / practice2)
 
 Person(employee, "Сотрудник")
 Person(admin, "Офис-администратор")
-System_Ext(notifier, "Почтовый сервис")
+System_Ext(notifier, "Почтовый / push-сервис")
 
 System_Boundary(bookingSystem, "Meeting Room Booking") {
-  Container(web, "Web UI", "Browser App", "Интерфейс бронирования")
-  Container(gateway, "API Gateway", "FastAPI", "Единая точка входа")
-  Container(booking, "Booking Service", "FastAPI", "Бизнес-логика бронирований")
-  ContainerDb(pg, "PostgreSQL", "PostgreSQL", "Хранение комнат и броней")
-  Container(cache, "Redis", "Redis", "Кэш и временные блокировки")
+  Container(web, "Web UI", "React 19, Vite, nginx", "SPA бронирования и входа")
+  Container(gateway, "API Gateway", "FastAPI, uvicorn", "Единая точка входа, /api, /metrics")
+  Container(booking, "Booking Service", "FastAPI, SQLAlchemy", "Бизнес-логика, JWT, /metrics")
+  ContainerDb(pg, "PostgreSQL", "PostgreSQL 16", "Комнаты, пользователи, брони")
+  Container(cache, "Redis", "Redis 7", "Кэш и блокировки слотов")
 }
 
-Rel(employee, web, "Работает через браузер", "HTTPS")
-Rel(admin, web, "Настраивает комнаты", "HTTPS")
-Rel(web, gateway, "REST/JSON", "HTTPS")
-Rel(gateway, booking, "REST/JSON", "HTTP")
+Rel(employee, web, "HTTPS", "браузер :3000")
+Rel(admin, web, "HTTPS", "браузер :3000")
+Rel(web, gateway, "REST JSON", "HTTPS :8000")
+Rel(gateway, booking, "Проксирование запросов", "HTTP :8001")
 Rel(booking, pg, "CRUD", "SQL")
-Rel(booking, cache, "Кэширование", "RESP")
-Rel(booking, notifier, "Отправка уведомлений", "SMTP/API")
+Rel(booking, cache, "Кэш / locks", "RESP")
+Rel(booking, notifier, "Уведомления", "SMTP / HTTP API")
 
 SHOW_LEGEND()
 @enduml

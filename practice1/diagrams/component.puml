@@ -1,14 +1,15 @@
 @startuml
 !include https://raw.githubusercontent.com/plantuml-stdlib/C4-PlantUML/master/C4_Component.puml
 
-title C4 Component - Booking Service
+title C4 Component — Booking Service (practice2)
 
 Container_Boundary(booking, "Booking Service") {
-  Component(api, "Booking API Controller", "FastAPI Router", "REST-эндпоинты")
-  Component(service, "Booking Manager", "Python Service", "Проверка конфликтов и правил")
-  Component(repo, "Schedule Repository", "SQLAlchemy", "Работа с PostgreSQL")
-  Component(cacheAdapter, "Cache Adapter", "Redis Client", "Кэш свободных интервалов")
-  Component(metrics, "Metrics Exporter", "prometheus_client", "Экспорт /metrics")
+  Component(api, "Booking API Router", "FastAPI", "REST, /auth, /rooms, /bookings, /metrics")
+  Component(auth, "Security layer", "PyJWT, bcrypt", "JWT, хэш пароля, bootstrap-админ")
+  Component(service, "Booking Manager", "Python", "Правила и конфликты броней")
+  Component(repo, "Schedule Repository", "SQLAlchemy", "PostgreSQL")
+  Component(cacheAdapter, "Cache Adapter", "Redis client", "Свободные интервалы, блокировки")
+  Component(metrics, "Metrics Exporter", "prometheus_client", "HTTP /metrics")
 }
 
 Container_Ext(gateway, "API Gateway")
@@ -16,12 +17,13 @@ ContainerDb(pg, "PostgreSQL")
 Container(redis, "Redis")
 
 Rel(gateway, api, "HTTP JSON")
-Rel(api, service, "Вызывает")
-Rel(service, repo, "Читает/записывает")
-Rel(service, cacheAdapter, "Читает/обновляет")
+Rel(api, auth, "Depends: Bearer JWT, роль admin")
+Rel(api, service, "Вызывает с контекстом пользователя")
+Rel(service, repo, "Читает / пишет")
+Rel(service, cacheAdapter, "Читает / обновляет")
 Rel(repo, pg, "SQL")
 Rel(cacheAdapter, redis, "RESP")
-Rel(api, metrics, "Увеличивает счетчики")
+Rel(api, metrics, "Счётчики и гистограммы")
 
 SHOW_LEGEND()
 @enduml
