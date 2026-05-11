@@ -68,3 +68,49 @@ def test_create_booking_conflict():
         },
     )
     assert second.status_code == 409
+
+
+def test_create_room_and_list_bookings_in_range():
+    room = client.post("/rooms", json={"name": "Zeta", "capacity": 5})
+    assert room.status_code == 201
+    room_id = room.json()["id"]
+
+    start = (datetime.utcnow() + timedelta(hours=10)).isoformat()
+    end = (datetime.utcnow() + timedelta(hours=11)).isoformat()
+    booking = client.post(
+        "/bookings",
+        json={"room_id": room_id, "user_email": "cal@example.com", "start_time": start, "end_time": end},
+    )
+    assert booking.status_code == 201
+
+    range_start = (datetime.utcnow() + timedelta(hours=9)).isoformat()
+    range_end = (datetime.utcnow() + timedelta(hours=12)).isoformat()
+    listed = client.get(
+        "/bookings",
+        params={"range_start": range_start, "range_end": range_end},
+    )
+    assert listed.status_code == 200
+    assert len(listed.json()) == 1
+    assert listed.json()[0]["user_email"] == "cal@example.com"
+
+
+def test_delete_room_blocked_when_bookings_exist():
+    room = client.post("/rooms", json={"name": "Eta", "capacity": 3})
+    room_id = room.json()["id"]
+    start = (datetime.utcnow() + timedelta(hours=20)).isoformat()
+    end = (datetime.utcnow() + timedelta(hours=21)).isoformat()
+    client.post(
+        "/bookings",
+        json={"room_id": room_id, "user_email": "x@example.com", "start_time": start, "end_time": end},
+    )
+    blocked = client.delete(f"/rooms/{room_id}")
+    assert blocked.status_code == 409
+
+
+def test_delete_room_success_when_empty():
+    room = client.post("/rooms", json={"name": "Theta", "capacity": 2})
+    room_id = room.json()["id"]
+    deleted = client.delete(f"/rooms/{room_id}")
+    assert deleted.status_code == 204
+    missing = client.delete(f"/rooms/{room_id}")
+    assert missing.status_code == 404

@@ -4,10 +4,26 @@ from typing import Any
 
 import httpx
 from fastapi import FastAPI, HTTPException, Response
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 from prometheus_client import CONTENT_TYPE_LATEST, Counter, Histogram, generate_latest
 
 BOOKING_SERVICE_URL = os.getenv("BOOKING_SERVICE_URL", "http://booking-service:8001")
+
+
+def _upstream_detail(response: httpx.Response) -> str:
+    try:
+        data = response.json()
+        detail = data.get("detail")
+        if isinstance(detail, str):
+            return detail
+        if isinstance(detail, list):
+            return "; ".join(str(item) for item in detail)
+        if detail is not None:
+            return str(detail)
+    except Exception:
+        pass
+    return response.text or "upstream request failed"
+
 
 REQUEST_COUNTER = Counter(
     "gateway_http_requests_total",
@@ -26,6 +42,22 @@ class BookingCreate(BaseModel):
     user_email: str
     start_time: str
     end_time: str
+
+
+class RoomCreate(BaseModel):
+    name: str = Field(min_length=1, max_length=128)
+    capacity: int = Field(gt=0)
+
+
+class RoomUpdate(BaseModel):
+    name: str | None = Field(default=None, min_length=1, max_length=128)
+    capacity: int | None = Field(default=None, gt=0)
+
+    @model_validator(mode="after")
+    def at_least_one_field(self) -> "RoomUpdate":
+        if self.name is None and self.capacity is None:
+            raise ValueError("at least one of name, capacity is required")
+        return self
 
 
 app = FastAPI(title="Meeting Rooms API Gateway", version="1.0.0")
@@ -59,7 +91,65 @@ async def list_rooms() -> Any:
         except httpx.HTTPError as exc:
             raise HTTPException(status_code=502, detail=f"booking service unavailable: {exc}") from exc
     if response.status_code >= 400:
-        raise HTTPException(status_code=response.status_code, detail=response.text)
+        raise HTTPException(status_code=response.status_code, detail=_upstream_detail(response))
+    return response.json()
+
+
+@app.post("/api/rooms")
+async def create_room(payload: RoomCreate) -> Any:
+    async with httpx.AsyncClient(timeout=10.0) as client:
+        try:
+            response = await client.post(f"{BOOKING_SERVICE_URL}/rooms", json=payload.model_dump())
+        except httpx.HTTPError as exc:
+            raise HTTPException(status_code=502, detail=f"booking service unavailable: {exc}") from exc
+    if response.status_code >= 400:
+        raise HTTPException(status_code=response.status_code, detail=_upstream_detail(response))
+    return response.json()
+
+
+@app.patch("/api/rooms/{room_id}")
+async def update_room(room_id: int, payload: RoomUpdate) -> Any:
+    async with httpx.AsyncClient(timeout=10.0) as client:
+        try:
+            response = await client.patch(
+                f"{BOOKING_SERVICE_URL}/rooms/{room_id}",
+                json=payload.model_dump(exclude_unset=True),
+            )
+        except httpx.HTTPError as exc:
+            raise HTTPException(status_code=502, detail=f"booking service unavailable: {exc}") from exc
+    if response.status_code >= 400:
+        raise HTTPException(status_code=response.status_code, detail=_upstream_detail(response))
+    return response.json()
+
+
+@app.delete("/api/rooms/{room_id}", status_code=204)
+async def delete_room(room_id: int) -> Response:
+    async with httpx.AsyncClient(timeout=10.0) as client:
+        try:
+            response = await client.delete(f"{BOOKING_SERVICE_URL}/rooms/{room_id}")
+        except httpx.HTTPError as exc:
+            raise HTTPException(status_code=502, detail=f"booking service unavailable: {exc}") from exc
+    if response.status_code >= 400:
+        raise HTTPException(status_code=response.status_code, detail=_upstream_detail(response))
+    return Response(status_code=204)
+
+
+@app.get("/api/bookings")
+async def list_bookings(
+    range_start: str,
+    range_end: str,
+    room_id: int | None = None,
+) -> Any:
+    params: dict[str, Any] = {"range_start": range_start, "range_end": range_end}
+    if room_id is not None:
+        params["room_id"] = room_id
+    async with httpx.AsyncClient(timeout=10.0) as client:
+        try:
+            response = await client.get(f"{BOOKING_SERVICE_URL}/bookings", params=params)
+        except httpx.HTTPError as exc:
+            raise HTTPException(status_code=502, detail=f"booking service unavailable: {exc}") from exc
+    if response.status_code >= 400:
+        raise HTTPException(status_code=response.status_code, detail=_upstream_detail(response))
     return response.json()
 
 
@@ -71,5 +161,5 @@ async def create_booking(payload: BookingCreate) -> Any:
         except httpx.HTTPError as exc:
             raise HTTPException(status_code=502, detail=f"booking service unavailable: {exc}") from exc
     if response.status_code >= 400:
-        raise HTTPException(status_code=response.status_code, detail=response.text)
+        raise HTTPException(status_code=response.status_code, detail=_upstream_detail(response))
     return response.json()

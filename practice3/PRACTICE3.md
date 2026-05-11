@@ -81,3 +81,17 @@ kubectl get pods -o wide
 kubectl describe pod <pod-name>
 kubectl logs <pod-name>
 ```
+
+### Сообщение вида «error validating data: failed to download openapi»
+
+`kubectl apply` (в том числе с `--dry-run=client`) в новых версиях клиента обращается к API Kubernetes за схемой OpenAPI. Если **minikube не запущен** или в `kubectl config` указан недоступный кластер (например, старый порт `127.0.0.1:...`), команда падает с ошибкой про **openapi**, хотя манифесты при этом могут быть корректными.
+
+Что сделать:
+
+1. Запустить кластер: `minikube start`
+2. Убедиться в контексте: `kubectl config use-context minikube`
+3. Повторить: `kubectl apply -f k8s/all-in-one.yaml`
+
+Если нужно только проверить синтаксис YAML без кластера, используйте отдельный валидатор (например, [kubeconform](https://github.com/yannh/kubeconform)) или временно отключите обращение к серверу, задав рабочий `KUBECONFIG` к доступному кластеру.
+
+В манифестах значения URL в `ConfigMap` и `DATABASE_URL` в `Deployment` заданы в **кавычках**, чтобы YAML-парсер не спутал двоеточия в строках с синтаксисом мапы.

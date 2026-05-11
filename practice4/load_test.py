@@ -1,4 +1,5 @@
 import asyncio
+import sys
 
 import httpx
 
@@ -12,4 +13,5 @@ async def run_load(url: str, requests_count: int = 150) -> None:
 
 
 if __name__ == "__main__":
-    asyncio.run(run_load("http://myapp.local"))
+    base_url = sys.argv[1] if len(sys.argv) > 1 else "http://myapp.local"
+    asyncio.run(run_load(base_url))

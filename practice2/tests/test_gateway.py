@@ -33,11 +33,22 @@ class DummyClient:
     async def __aexit__(self, *args):
         return False
 
-    async def get(self, url):
+    async def get(self, url, params=None):
+        if "/bookings" in url:
+            return MockResponse(200, [])
         return MockResponse(200, [{"id": 1, "name": "Alpha", "capacity": 6}])
 
-    async def post(self, url, json):
-        return MockResponse(201, {"id": 1, **json})
+    async def post(self, url, json=None):
+        if url.rstrip("/").endswith("/rooms"):
+            return MockResponse(201, {"id": 3, **(json or {})})
+        return MockResponse(201, {"id": 1, **(json or {})})
+
+    async def patch(self, url, json=None):
+        payload = json or {}
+        return MockResponse(200, {"id": 1, "name": payload.get("name", "Alpha"), "capacity": payload.get("capacity", 6)})
+
+    async def delete(self, url):
+        return MockResponse(204, None)
 
 
 def test_gateway_proxy_endpoints(monkeypatch):
@@ -59,3 +70,21 @@ def test_gateway_proxy_endpoints(monkeypatch):
     )
     assert booking.status_code == 200
     assert booking.json()["room_id"] == 1
+
+    bookings = client.get(
+        "/api/bookings",
+        params={"range_start": "2026-05-01T00:00:00Z", "range_end": "2026-05-31T23:59:59Z"},
+    )
+    assert bookings.status_code == 200
+    assert bookings.json() == []
+
+    created_room = client.post("/api/rooms", json={"name": "Delta", "capacity": 8})
+    assert created_room.status_code == 200
+    assert created_room.json()["name"] == "Delta"
+
+    patched = client.patch("/api/rooms/1", json={"capacity": 12})
+    assert patched.status_code == 200
+    assert patched.json()["capacity"] == 12
+
+    deleted = client.delete("/api/rooms/1")
+    assert deleted.status_code == 204

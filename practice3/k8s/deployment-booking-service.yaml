@@ -20,6 +20,6 @@ spec:
             - containerPort: 8001
           env:
             - name: DATABASE_URL
-              value: postgresql+psycopg2://booking:booking@postgres:5432/booking
+              value: "postgresql+psycopg2://booking:booking@postgres:5432/booking"
             - name: REDIS_URL
               value: redis://redis:6379/0
