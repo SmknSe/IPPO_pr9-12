@@ -264,15 +264,41 @@ function App() {
   }, [])
 
   const eventStyleGetter = useCallback((event) => {
+    // Палитра согласована с общей тёмной темой приложения:
+    // - background соответствует оттенкам, используемым в карточках и toolbar
+    // - border использует яркие accent-цвета (#7b8cff и аналогичные)
+    // - fg соответствует светлому тексту (#eef1ff / #f0f2ff)
     const palette = [
-      { bg: '#3a4d9e', border: '#7b8cff', fg: '#eef1ff' },
-      { bg: '#2a6f8f', border: '#4ec4e8', fg: '#e8f8ff' },
-      { bg: '#5c3d8a', border: '#b894f5', fg: '#f4efff' },
-      { bg: '#2d6b52', border: '#5cdba8', fg: '#e8fff4' },
-      { bg: '#8a4a42', border: '#ff9a8c', fg: '#fff2f0' },
+      {
+        bg: '#1f2747',      // глубокий сине-индиго
+        border: '#7b8cff',  // основной accent
+        fg: '#eef1ff',
+      },
+      {
+        bg: '#16384a',      // тёмный циан
+        border: '#4ec4e8',
+        fg: '#e8f8ff',
+      },
+      {
+        bg: '#2d1f4d',      // тёмный фиолетовый
+        border: '#b894f5',
+        fg: '#f4efff',
+      },
+      {
+        bg: '#183c31',      // тёмный изумрудный
+        border: '#5cdba8',
+        fg: '#e8fff4',
+      },
+      {
+        bg: '#4a2328',      // тёмный коралловый
+        border: '#ff9a8c',
+        fg: '#fff2f0',
+      },
     ]
+  
     const idx = (event.resourceId || 0) % palette.length
     const c = palette[idx]
+  
     return {
       style: {
         backgroundColor: c.bg,
@@ -284,7 +310,7 @@ function App() {
         borderRadius: '6px',
         fontSize: '12px',
         fontWeight: 600,
-        boxShadow: '0 2px 8px rgba(0,0,0,0.35)',
+        boxShadow: '0 2px 8px rgba(0, 0, 0, 0.35)',
       },
     }
   }, [])
