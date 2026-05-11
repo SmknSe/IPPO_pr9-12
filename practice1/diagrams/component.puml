@@ -1,0 +1,27 @@
+@startuml
+!include https://raw.githubusercontent.com/plantuml-stdlib/C4-PlantUML/master/C4_Component.puml
+
+title C4 Component - Booking Service
+
+Container_Boundary(booking, "Booking Service") {
+  Component(api, "Booking API Controller", "FastAPI Router", "REST-эндпоинты")
+  Component(service, "Booking Manager", "Python Service", "Проверка конфликтов и правил")
+  Component(repo, "Schedule Repository", "SQLAlchemy", "Работа с PostgreSQL")
+  Component(cacheAdapter, "Cache Adapter", "Redis Client", "Кэш свободных интервалов")
+  Component(metrics, "Metrics Exporter", "prometheus_client", "Экспорт /metrics")
+}
+
+Container_Ext(gateway, "API Gateway")
+ContainerDb(pg, "PostgreSQL")
+Container(redis, "Redis")
+
+Rel(gateway, api, "HTTP JSON")
+Rel(api, service, "Вызывает")
+Rel(service, repo, "Читает/записывает")
+Rel(service, cacheAdapter, "Читает/обновляет")
+Rel(repo, pg, "SQL")
+Rel(cacheAdapter, redis, "RESP")
+Rel(api, metrics, "Увеличивает счетчики")
+
+SHOW_LEGEND()
+@enduml

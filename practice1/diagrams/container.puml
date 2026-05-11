@@ -1,0 +1,27 @@
+@startuml
+!include https://raw.githubusercontent.com/plantuml-stdlib/C4-PlantUML/master/C4_Container.puml
+
+title C4 Container - Meeting Room Booking
+
+Person(employee, "Сотрудник")
+Person(admin, "Офис-администратор")
+System_Ext(notifier, "Почтовый сервис")
+
+System_Boundary(bookingSystem, "Meeting Room Booking") {
+  Container(web, "Web UI", "Browser App", "Интерфейс бронирования")
+  Container(gateway, "API Gateway", "FastAPI", "Единая точка входа")
+  Container(booking, "Booking Service", "FastAPI", "Бизнес-логика бронирований")
+  ContainerDb(pg, "PostgreSQL", "PostgreSQL", "Хранение комнат и броней")
+  Container(cache, "Redis", "Redis", "Кэш и временные блокировки")
+}
+
+Rel(employee, web, "Работает через браузер", "HTTPS")
+Rel(admin, web, "Настраивает комнаты", "HTTPS")
+Rel(web, gateway, "REST/JSON", "HTTPS")
+Rel(gateway, booking, "REST/JSON", "HTTP")
+Rel(booking, pg, "CRUD", "SQL")
+Rel(booking, cache, "Кэширование", "RESP")
+Rel(booking, notifier, "Отправка уведомлений", "SMTP/API")
+
+SHOW_LEGEND()
+@enduml
