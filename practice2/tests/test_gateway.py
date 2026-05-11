@@ -34,10 +34,12 @@ class DummyClient:
         return False
 
     async def get(self, url, params=None, headers=None):
+        if "/users/search" in url:
+            return MockResponse(200, [{"id": 99, "email": "found@example.com"}])
         if "/bookings" in url:
             return MockResponse(200, [])
         if "/auth/me" in url:
-            return MockResponse(200, {"email": "a@a.com", "is_admin": False})
+            return MockResponse(200, {"id": 1, "email": "a@a.com", "is_admin": False})
         return MockResponse(200, [{"id": 1, "name": "Alpha", "capacity": 6}])
 
     async def post(self, url, json=None, headers=None):
@@ -47,18 +49,58 @@ class DummyClient:
                 {
                     "access_token": "fake",
                     "token_type": "bearer",
-                    "user": {"email": (json or {}).get("email", "user@x.com"), "is_admin": False},
+                    "user": {"id": 2, "email": (json or {}).get("email", "user@x.com"), "is_admin": False},
+                },
+            )
+        if "/participants" in url:
+            return MockResponse(
+                201,
+                {
+                    "id": 1,
+                    "room_id": 1,
+                    "user_id": 1,
+                    "user_email": "t@t.com",
+                    "participant_emails": ["found@example.com"],
+                    "participants": [{"user_id": 99, "email": "found@example.com"}],
+                    "start_time": "2026-05-12T10:00:00",
+                    "end_time": "2026-05-12T11:00:00",
                 },
             )
         if url.rstrip("/").endswith("/rooms"):
             return MockResponse(201, {"id": 3, **(json or {})})
-        return MockResponse(201, {"id": 1, "room_id": 1, "user_id": 1, "user_email": "t@t.com", **(json or {})})
+        return MockResponse(
+            201,
+            {
+                "id": 1,
+                "room_id": 1,
+                "user_id": 1,
+                "user_email": "t@t.com",
+                "participant_emails": [],
+                "participants": [],
+                "start_time": "2026-05-12T10:00:00",
+                "end_time": "2026-05-12T11:00:00",
+            },
+        )
 
     async def patch(self, url, json=None, headers=None):
         payload = json or {}
         return MockResponse(200, {"id": 1, "name": payload.get("name", "Alpha"), "capacity": payload.get("capacity", 6)})
 
     async def delete(self, url, headers=None):
+        if "/participants/" in url:
+            return MockResponse(
+                200,
+                {
+                    "id": 1,
+                    "room_id": 1,
+                    "user_id": 1,
+                    "user_email": "t@t.com",
+                    "participant_emails": [],
+                    "participants": [],
+                    "start_time": "2026-05-12T10:00:00",
+                    "end_time": "2026-05-12T11:00:00",
+                },
+            )
         return MockResponse(204, None)
 
 
@@ -78,6 +120,10 @@ def test_gateway_proxy_endpoints(monkeypatch):
     assert me.status_code == 200
     assert me.json()["email"] == "a@a.com"
 
+    found = client.get("/api/users/search", headers={"Authorization": "Bearer t"}, params={"q": "found"})
+    assert found.status_code == 200
+    assert found.json()[0]["email"] == "found@example.com"
+
     booking = client.post(
         "/api/bookings",
         headers={"Authorization": "Bearer t"},
@@ -89,6 +135,14 @@ def test_gateway_proxy_endpoints(monkeypatch):
     )
     assert booking.status_code == 200
     assert booking.json()["room_id"] == 1
+
+    invited = client.post(
+        "/api/bookings/1/participants",
+        headers={"Authorization": "Bearer t"},
+        json={"user_id": 99},
+    )
+    assert invited.status_code == 200
+    assert "found@example.com" in invited.json()["participant_emails"]
 
     bookings = client.get(
         "/api/bookings",

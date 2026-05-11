@@ -3,10 +3,13 @@
 
 title C4 Component — Booking Service (practice2)
 
+System_Ext(notifier, "SMTP relay / почтовый сервис", "Доставка приглашений участникам")
+
 Container_Boundary(booking, "Booking Service") {
-  Component(api, "Booking API Router", "FastAPI", "REST, /auth, /rooms, /bookings, /metrics")
+  Component(api, "Booking API Router", "FastAPI", "REST, /auth, /users/search, /rooms, /bookings, /metrics")
   Component(auth, "Security layer", "PyJWT, bcrypt", "JWT, хэш пароля, bootstrap-админ")
-  Component(service, "Booking Manager", "Python", "Правила и конфликты броней")
+  Component(service, "Booking Manager", "Python", "Правила и конфликты броней, участники")
+  Component(mail, "Meeting invite mailer", "smtplib", "Письмо при добавлении участника")
   Component(repo, "Schedule Repository", "SQLAlchemy", "PostgreSQL")
   Component(cacheAdapter, "Cache Adapter", "Redis client", "Свободные интервалы, блокировки")
   Component(metrics, "Metrics Exporter", "prometheus_client", "HTTP /metrics")
@@ -21,6 +24,8 @@ Rel(api, auth, "Depends: Bearer JWT, роль admin")
 Rel(api, service, "Вызывает с контекстом пользователя")
 Rel(service, repo, "Читает / пишет")
 Rel(service, cacheAdapter, "Читает / обновляет")
+Rel(service, mail, "После добавления участника")
+Rel(mail, notifier, "SMTP", "STARTTLS при необходимости")
 Rel(repo, pg, "SQL")
 Rel(cacheAdapter, redis, "RESP")
 Rel(api, metrics, "Счётчики и гистограммы")

@@ -170,3 +170,66 @@ def test_bookings_require_auth():
         },
     )
     assert r.status_code == 401
+
+
+def test_user_search_and_participants(monkeypatch):
+    org_h = _register("org@example.com", "secret12")
+    inv_h = _register("invitee@example.com", "secret12")
+
+    sent: list[str] = []
+
+    def fake_send(*, to_email: str, **kwargs):
+        sent.append(to_email)
+
+    monkeypatch.setattr(main, "send_meeting_invite_email", fake_send)
+
+    start = (datetime.utcnow() + timedelta(hours=30)).isoformat()
+    end = (datetime.utcnow() + timedelta(hours=31)).isoformat()
+    b = client.post("/bookings", json={"room_id": 1, "start_time": start, "end_time": end}, headers=org_h)
+    assert b.status_code == 201
+    bid = b.json()["id"]
+
+    s = client.get("/users/search", params={"q": "invitee"}, headers=org_h)
+    assert s.status_code == 200
+    users = s.json()
+    assert len(users) == 1
+    invitee_id = users[0]["id"]
+
+    bad = client.post(
+        f"/bookings/{bid}/participants",
+        json={"user_id": invitee_id},
+        headers=inv_h,
+    )
+    assert bad.status_code == 403
+
+    ok = client.post(
+        f"/bookings/{bid}/participants",
+        json={"user_id": invitee_id},
+        headers=org_h,
+    )
+    assert ok.status_code == 201
+    body = ok.json()
+    assert "invitee@example.com" in body["participant_emails"]
+    assert sent == ["invitee@example.com"]
+
+    dup = client.post(
+        f"/bookings/{bid}/participants",
+        json={"user_id": invitee_id},
+        headers=org_h,
+    )
+    assert dup.status_code == 409
+
+    listed = client.get(
+        "/bookings",
+        params={
+            "range_start": (datetime.utcnow() + timedelta(hours=29)).isoformat(),
+            "range_end": (datetime.utcnow() + timedelta(hours=32)).isoformat(),
+        },
+        headers=inv_h,
+    )
+    assert listed.status_code == 200
+    assert len(listed.json()) == 1
+
+    removed = client.delete(f"/bookings/{bid}/participants/{invitee_id}", headers=org_h)
+    assert removed.status_code == 200
+    assert removed.json()["participant_emails"] == []

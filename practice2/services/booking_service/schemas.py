@@ -40,6 +40,7 @@ class UserLogin(BaseModel):
 class UserPublic(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
+    id: int
     email: str
     is_admin: bool
 
@@ -56,6 +57,11 @@ class BookingCreate(BaseModel):
     end_time: datetime
 
 
+class BookingParticipantOut(BaseModel):
+    user_id: int
+    email: str
+
+
 class BookingOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
@@ -65,3 +71,16 @@ class BookingOut(BaseModel):
     user_email: str
     start_time: datetime
     end_time: datetime
+    participant_emails: list[str] = []
+    participants: list[BookingParticipantOut] = []
+
+
+class UserSearchOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    email: str
+
+
+class ParticipantAdd(BaseModel):
+    user_id: int = Field(gt=0)

@@ -61,6 +61,10 @@ class BookingCreate(BaseModel):
     end_time: str
 
 
+class ParticipantAddBody(BaseModel):
+    user_id: int = Field(gt=0)
+
+
 class RoomCreate(BaseModel):
     name: str = Field(min_length=1, max_length=128)
     capacity: int = Field(gt=0)
@@ -219,6 +223,68 @@ async def list_bookings(
             response = await client.get(
                 f"{BOOKING_SERVICE_URL}/bookings",
                 params=params,
+                headers=_forward_headers(request),
+            )
+        except httpx.HTTPError as exc:
+            raise HTTPException(status_code=502, detail=f"booking service unavailable: {exc}") from exc
+    if response.status_code >= 400:
+        raise HTTPException(status_code=response.status_code, detail=_upstream_detail(response))
+    return response.json()
+
+
+@app.get("/api/users/search")
+async def search_users(
+    request: Request,
+    q: str,
+    exclude_booking_id: int | None = None,
+) -> Any:
+    params: dict[str, Any] = {"q": q}
+    if exclude_booking_id is not None:
+        params["exclude_booking_id"] = exclude_booking_id
+    async with httpx.AsyncClient(timeout=10.0) as client:
+        try:
+            response = await client.get(
+                f"{BOOKING_SERVICE_URL}/users/search",
+                params=params,
+                headers=_forward_headers(request),
+            )
+        except httpx.HTTPError as exc:
+            raise HTTPException(status_code=502, detail=f"booking service unavailable: {exc}") from exc
+    if response.status_code >= 400:
+        raise HTTPException(status_code=response.status_code, detail=_upstream_detail(response))
+    return response.json()
+
+
+@app.post("/api/bookings/{booking_id}/participants")
+async def add_booking_participant(
+    booking_id: int,
+    request: Request,
+    payload: ParticipantAddBody,
+) -> Any:
+    async with httpx.AsyncClient(timeout=10.0) as client:
+        try:
+            response = await client.post(
+                f"{BOOKING_SERVICE_URL}/bookings/{booking_id}/participants",
+                json=payload.model_dump(),
+                headers=_forward_headers(request),
+            )
+        except httpx.HTTPError as exc:
+            raise HTTPException(status_code=502, detail=f"booking service unavailable: {exc}") from exc
+    if response.status_code >= 400:
+        raise HTTPException(status_code=response.status_code, detail=_upstream_detail(response))
+    return response.json()
+
+
+@app.delete("/api/bookings/{booking_id}/participants/{participant_user_id}")
+async def remove_booking_participant(
+    booking_id: int,
+    participant_user_id: int,
+    request: Request,
+) -> Any:
+    async with httpx.AsyncClient(timeout=10.0) as client:
+        try:
+            response = await client.delete(
+                f"{BOOKING_SERVICE_URL}/bookings/{booking_id}/participants/{participant_user_id}",
                 headers=_forward_headers(request),
             )
         except httpx.HTTPError as exc:

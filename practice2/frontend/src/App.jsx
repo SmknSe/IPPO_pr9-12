@@ -52,6 +52,11 @@ function App() {
   const [editingId, setEditingId] = useState(null)
   const [editDraft, setEditDraft] = useState({ name: '', capacity: '' })
   const [roomBusy, setRoomBusy] = useState(false)
+  const [rangeBookings, setRangeBookings] = useState([])
+  const [participantBookingId, setParticipantBookingId] = useState('')
+  const [participantQuery, setParticipantQuery] = useState('')
+  const [participantResults, setParticipantResults] = useState([])
+  const [participantBusy, setParticipantBusy] = useState(false)
 
   const authHeaders = useCallback(() => {
     const h = { 'Content-Type': 'application/json' }
@@ -114,6 +119,7 @@ function App() {
     async (rangeStart, rangeEnd) => {
       if (!rangeStart || !rangeEnd || !token) {
         setCalendarEvents([])
+        setRangeBookings([])
         return
       }
       setIsLoadingBookings(true)
@@ -128,14 +134,19 @@ function App() {
           throw new Error('Не удалось загрузить бронирования для календаря')
         }
         const data = await response.json()
+        setRangeBookings(data)
         setCalendarEvents(
-          data.map((b) => ({
-            id: b.id,
-            title: `${roomById[b.room_id]?.name ?? 'Комната ' + b.room_id} — ${b.user_email}`,
-            start: new Date(b.start_time),
-            end: new Date(b.end_time),
-            resourceId: b.room_id,
-          })),
+          data.map((b) => {
+            const n = b.participant_emails?.length ?? 0
+            const extra = n > 0 ? ` (+${n})` : ''
+            return {
+              id: b.id,
+              title: `${roomById[b.room_id]?.name ?? 'Комната ' + b.room_id} — ${b.user_email}${extra}`,
+              start: new Date(b.start_time),
+              end: new Date(b.end_time),
+              resourceId: b.room_id,
+            }
+          }),
         )
       } catch (err) {
         setError(err.message)
@@ -188,6 +199,10 @@ function App() {
     setToken('')
     setUser(null)
     setCalendarEvents([])
+    setRangeBookings([])
+    setParticipantBookingId('')
+    setParticipantQuery('')
+    setParticipantResults([])
     setSuccess('Вы вышли из аккаунта')
   }
 
@@ -223,6 +238,7 @@ function App() {
       }
       const created = await response.json()
       setBookings((prev) => [created, ...prev].slice(0, 8))
+      setParticipantBookingId(String(created.id))
       setSuccess('Бронирование успешно создано')
       setForm((prev) => ({ ...prev, start_time: '', end_time: '' }))
       loadBookingsForRange(calendarRange.start, calendarRange.end)
@@ -331,6 +347,87 @@ function App() {
     }
   }
 
+  const organizedBookings = useMemo(
+    () => (user?.id ? rangeBookings.filter((b) => b.user_id === user.id) : []),
+    [rangeBookings, user],
+  )
+
+  const selectedParticipantBooking = useMemo(() => {
+    if (!participantBookingId) return null
+    return rangeBookings.find((b) => String(b.id) === String(participantBookingId)) ?? null
+  }, [rangeBookings, participantBookingId])
+
+  const searchParticipants = async () => {
+    const q = participantQuery.trim()
+    if (q.length < 2) {
+      setError('Введите не менее 2 символов для поиска')
+      return
+    }
+    if (!participantBookingId) {
+      setError('Выберите бронирование из списка')
+      return
+    }
+    setParticipantBusy(true)
+    setError('')
+    try {
+      const params = new URLSearchParams({ q })
+      params.set('exclude_booking_id', participantBookingId)
+      const response = await fetch(`${API_BASE}/api/users/search?${params}`, { headers: authHeaders() })
+      const body = await response.json().catch(() => ({}))
+      if (!response.ok) throw new Error(typeof body.detail === 'string' ? body.detail : 'Поиск не удался')
+      setParticipantResults(Array.isArray(body) ? body : [])
+    } catch (err) {
+      setError(err.message)
+    } finally {
+      setParticipantBusy(false)
+    }
+  }
+
+  const addParticipant = async (userId) => {
+    if (!participantBookingId) return
+    setParticipantBusy(true)
+    setError('')
+    setSuccess('')
+    try {
+      const response = await fetch(`${API_BASE}/api/bookings/${participantBookingId}/participants`, {
+        method: 'POST',
+        headers: authHeaders(),
+        body: JSON.stringify({ user_id: userId }),
+      })
+      const body = await response.json().catch(() => ({}))
+      if (!response.ok) throw new Error(typeof body.detail === 'string' ? body.detail : 'Не удалось добавить')
+      setSuccess('Участник добавлен. На почту уйдёт приглашение, если задан SMTP в окружении сервиса.')
+      setParticipantResults([])
+      setParticipantQuery('')
+      await loadBookingsForRange(calendarRange.start, calendarRange.end)
+    } catch (err) {
+      setError(err.message)
+    } finally {
+      setParticipantBusy(false)
+    }
+  }
+
+  const removeParticipant = async (userId) => {
+    if (!participantBookingId) return
+    setParticipantBusy(true)
+    setError('')
+    setSuccess('')
+    try {
+      const response = await fetch(
+        `${API_BASE}/api/bookings/${participantBookingId}/participants/${userId}`,
+        { method: 'DELETE', headers: authHeaders() },
+      )
+      const body = await response.json().catch(() => ({}))
+      if (!response.ok) throw new Error(typeof body.detail === 'string' ? body.detail : 'Не удалось удалить')
+      setSuccess('Участник исключён из брони')
+      await loadBookingsForRange(calendarRange.start, calendarRange.end)
+    } catch (err) {
+      setError(err.message)
+    } finally {
+      setParticipantBusy(false)
+    }
+  }
+
   const onCalendarRangeChange = useCallback((range) => {
     if (Array.isArray(range)) {
       const start = range[0]
@@ -375,7 +472,8 @@ function App() {
             <span className="badge">Meeting Room Booking</span>
             <h1>Бронирование переговорок</h1>
             <p>
-              Войдите, чтобы создавать брони и видеть календарь. Управление переговорками (добавление, правка, удаление)
+              Войдите, чтобы создавать брони и видеть календарь. Организатор может искать пользователей по email и
+              добавлять их во встречу — приглашение уходит на почту (при настройке SMTP). Управление переговорками
               доступно только администратору.
             </p>
           </div>
@@ -652,6 +750,90 @@ function App() {
             )}
           </section>
         </div>
+
+        {token && (
+          <section className="card participant-card">
+            <div className="card-title-row">
+              <h2>Участники встречи</h2>
+              <span className="muted">только организатор брони</span>
+            </div>
+            <p className="muted small-print">
+              Выберите свою бронь в видимом диапазоне календаря, найдите зарегистрированного пользователя (минимум 2
+              символа в email) и добавьте его. Без переменных SMTP в сервисе письмо не отправляется, но участник в
+              системе появится.
+            </p>
+            {organizedBookings.length === 0 && (
+              <p className="muted">
+                В выбранном диапазоне календаря нет ваших броней как организатора — создайте встречу или переключите
+                неделю.
+              </p>
+            )}
+            <div className="participant-grid">
+              <label>
+                Бронирование (вы — организатор)
+                <select
+                  value={participantBookingId}
+                  onChange={(e) => setParticipantBookingId(e.target.value)}
+                  disabled={participantBusy || organizedBookings.length === 0}
+                >
+                  <option value="">— выберите —</option>
+                  {organizedBookings.map((b) => (
+                    <option key={b.id} value={b.id}>
+                      #{b.id} {roomById[b.room_id]?.name ?? 'комн.'} {new Date(b.start_time).toLocaleString('ru-RU')}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <div className="participant-search-row">
+                <label>
+                  Поиск по email
+                  <input
+                    type="search"
+                    placeholder="фрагмент email"
+                    value={participantQuery}
+                    onChange={(e) => setParticipantQuery(e.target.value)}
+                    disabled={participantBusy}
+                  />
+                </label>
+                <button type="button" className="btn-secondary" onClick={searchParticipants} disabled={participantBusy}>
+                  {participantBusy ? '…' : 'Найти'}
+                </button>
+              </div>
+            </div>
+            {participantResults.length > 0 && (
+              <ul className="participant-results">
+                {participantResults.map((u) => (
+                  <li key={u.id}>
+                    <span>{u.email}</span>
+                    <button type="button" className="btn-small" onClick={() => addParticipant(u.id)} disabled={participantBusy}>
+                      Добавить
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            )}
+            {selectedParticipantBooking && (selectedParticipantBooking.participants?.length ?? 0) > 0 && (
+              <div className="participant-current">
+                <strong>Уже приглашены</strong>
+                <ul>
+                  {selectedParticipantBooking.participants.map((p) => (
+                    <li key={p.user_id}>
+                      <span>{p.email}</span>
+                      <button
+                        type="button"
+                        className="btn-small ghost"
+                        onClick={() => removeParticipant(p.user_id)}
+                        disabled={participantBusy}
+                      >
+                        Убрать
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+          </section>
+        )}
       </main>
     </div>
   )

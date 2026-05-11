@@ -21,7 +21,7 @@ Rel(web, gateway, "REST JSON", "HTTPS :8000")
 Rel(gateway, booking, "Проксирование запросов", "HTTP :8001")
 Rel(booking, pg, "CRUD", "SQL")
 Rel(booking, cache, "Кэш / locks", "RESP")
-Rel(booking, notifier, "Уведомления", "SMTP / HTTP API")
+Rel(booking, notifier, "Письма при добавлении участника", "SMTP (STARTTLS)")
 
 SHOW_LEGEND()
 @enduml

@@ -11,7 +11,7 @@ System_Ext(notifier, "Почтовый / push-сервис", "Подтвержд
 
 Rel(employee, bookingSystem, "Брони, регистрация, вход (JWT)", "HTTPS")
 Rel(admin, bookingSystem, "Администрирование комнат, вход (JWT)", "HTTPS")
-Rel(bookingSystem, notifier, "Отправка уведомлений", "SMTP / HTTP API")
+Rel(bookingSystem, notifier, "Приглашения участников встречи, напоминания", "SMTP / HTTP API")
 
 SHOW_LEGEND()
 @enduml
