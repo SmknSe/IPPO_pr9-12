@@ -1,32 +1,110 @@
 {
-  "title": "Meeting Rooms Booking",
+  "title": "Meeting Rooms Booking - Production Monitoring",
   "schemaVersion": 38,
   "version": 1,
   "panels": [
     {
+      "type": "stat",
+      "title": "Health Score",
+      "targets": [{
+        "expr": "(sum(rate(gateway_http_requests_total{status=\"200\"}[5m])) / sum(rate(gateway_http_requests_total[5m]))) * 100",
+        "legendFormat": "Success Rate %"
+      }],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "thresholds": {
+            "steps": [
+              {"value": 0, "color": "red"},
+              {"value": 90, "color": "yellow"},
+              {"value": 99, "color": "green"}
+            ]
+          }
+        }
+      }
+    },
+    {
       "type": "timeseries",
-      "title": "Gateway RPS",
+      "title": "📈 RPS by Status",
       "targets": [
         {
-          "expr": "sum(rate(gateway_http_requests_total[1m]))"
+          "expr": "sum(rate(gateway_http_requests_total{status=\"200\"}[1m]))",
+          "legendFormat": "✅ Success (200)",
+          "color": "green"
+        },
+        {
+          "expr": "sum(rate(gateway_http_requests_total{status=\"502\"}[1m]))",
+          "legendFormat": "❌ Bad Gateway (502)",
+          "color": "red"
         }
       ]
     },
     {
       "type": "timeseries",
-      "title": "Gateway P95 Latency",
+      "title": "⏱️ Latency Percentiles (P50/P95/P99)",
       "targets": [
         {
-          "expr": "histogram_quantile(0.95, sum(rate(gateway_http_request_duration_seconds_bucket[5m])) by (le))"
+          "expr": "histogram_quantile(0.50, sum(rate(gateway_http_request_duration_seconds_bucket{path=\"/api/rooms\"}[5m])) by (le))",
+          "legendFormat": "P50 (медиана)"
+        },
+        {
+          "expr": "histogram_quantile(0.95, sum(rate(gateway_http_request_duration_seconds_bucket{path=\"/api/rooms\"}[5m])) by (le))",
+          "legendFormat": "P95"
+        },
+        {
+          "expr": "histogram_quantile(0.99, sum(rate(gateway_http_request_duration_seconds_bucket{path=\"/api/rooms\"}[5m])) by (le))",
+          "legendFormat": "P99"
         }
-      ]
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s"
+        }
+      }
     },
     {
-      "type": "timeseries",
-      "title": "Bookings Created",
+      "type": "histogram",
+      "title": "🎸 Request Latency Heatmap",
+      "targets": [{
+        "expr": "sum(rate(gateway_http_request_duration_seconds_bucket[5m])) by (le)",
+        "format": "heatmap"
+      }]
+    },
+    {
+      "type": "stat",
+      "title": "Total Requests (Last 5m)",
+      "targets": [{
+        "expr": "sum(increase(gateway_http_requests_total[5m]))",
+        "legendFormat": "Total"
+      }]
+    },
+    {
+      "type": "stat",
+      "title": "Error Rate",
+      "targets": [{
+        "expr": "sum(rate(gateway_http_requests_total{status=\"502\"}[5m])) / sum(rate(gateway_http_requests_total[5m])) * 100",
+        "legendFormat": "502 Errors"
+      }],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "thresholds": {
+            "steps": [
+              {"value": 0, "color": "green"},
+              {"value": 5, "color": "yellow"},
+              {"value": 10, "color": "red"}
+            ]
+          }
+        }
+      }
+    },
+    {
+      "type": "table",
+      "title": "Detailed Metrics by Endpoint",
       "targets": [
         {
-          "expr": "sum(rate(bookings_created_total[1m]))"
+          "expr": "sum(rate(gateway_http_requests_total[5m])) by (path, status)",
+          "format": "table"
         }
       ]
     }
